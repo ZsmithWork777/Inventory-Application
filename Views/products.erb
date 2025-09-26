@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="style.css">
+    <title>Products</title>
+</head>
+<body>
+  <h1>Product List</h1>
+
+  <!-- Product Table -->
+  <div class="glass-container">
+    <table>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Quantity</th>
+        <th>Price</th>
+        <th>Actions</th>
+      </tr>
+      <% @products.each do |row| %>
+        <tr>
+          <td><%= row["id"] %></td>
+          <td><%= row["name"] %></td>
+          <td><%= row["quantity"] %></td>
+          <td>$<%= row["price"] %></td>
+          <td>
+            <!-- Edit -->
+            <form action="/products/<%= row["id"] %>/edit" method="get" style="display:inline;">
+              <button type="submit">Edit</button>
+            </form>
+
+            <!-- Delete -->
+            <form action="/products/<%= row["id"] %>/delete" method="post" style="display:inline;">
+              <button type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      <% end %>
+    </table>
+  </div>
+
+  <!-- Add Product Form -->
+  <h2>Add a New Product</h2>
+  <div class="glass-container">
+    <form action="/products" method="post">
+      <label>Name: </label>
+      <input type="text" name="name"><br>
+
+      <label>Quantity: </label>
+      <input type="number" name="quantity"><br>
+
+      <label>Price: </label>
+      <input type="number" step="0.01" name="price"><br>
+
+      <button type="submit">Add Product</button>
+    </form>
+  </div>
+</body>
+</html>

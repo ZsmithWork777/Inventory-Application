@@ -1,0 +1,72 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #a2d2ff, #bde0fe, #cdb4db);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 20px;
+  color: #222;
+}
+
+.glass-container {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+  width: 80%;
+  max-width: 900px;
+  margin-bottom: 30px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+th {
+  background: rgba(30, 144, 255, 0.6);
+  color: white;
+  padding: 12px 15px;
+}
+
+td {
+  padding: 12px 15px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+tr:hover td {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+button {
+  background: linear-gradient(135deg, #48c6ef, #6f86d6);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+button:hover {
+  transform: scale(1.05);
+  background: linear-gradient(135deg, #6f86d6, #48c6ef);
+}
+
+input[type="text"], input[type="number"] {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  margin: 8px 0;
+  width: 100%;
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(6px);
+}
