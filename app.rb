@@ -5,6 +5,8 @@ require "pg"
 require "argon2"
 require "securerandom"
 
+
+
 puts "🚀 Sinatra server starting at http://localhost:4567"
 
 # ------------------------
@@ -19,7 +21,7 @@ set :views, File.join(__dir__, "views")
 # Database Connection
 # ------------------------
 def db_connection
-  PG.connect(dbname: "Inventory")
+  PG.connect(ENV["DATABASE_URL"])
 end
 
 # ------------------------
@@ -40,14 +42,7 @@ post "/login" do
   user = conn.exec_params("SELECT * FROM users WHERE username = $1", [username]).first
   conn.close
 
-  # Debug output (will show in terminal)
-  puts "-------------------------"
-  puts "Entered username: '#{username}'"
-  puts "Entered password: '#{password}'"
-  puts "DB hash: '#{user ? user["password_hash"] : "nil"}'"
   match = user ? Argon2::Password.verify_password(password.strip, user["password_hash"]) : false
-  puts "Password match? #{match}"
-  puts "-------------------------"
 
   if user && match
     session[:user] = username
@@ -159,17 +154,3 @@ post "/products/:id/update" do
     redirect "/products"
   end
 end
-
-# ------------------------
-# Auto-open browser
-# ------------------------
-Thread.new do 
-  sleep 1 
-  begin
-    Launchy.open("http://localhost:4567/")
-  rescue => e
-    puts "Launchy error: #{e.message}"
-  end
-end
-
-# Run Sinatra if this file is executed directly
