@@ -22,9 +22,12 @@ GEM
     logger (1.7.0)
     mustermann (3.0.4)
       ruby2_keywords (~> 0.0.1)
+    nio4r (2.7.4)
     pg (1.6.2)
     pg (1.6.2-arm64-darwin)
     public_suffix (6.0.2)
+    puma (7.0.4)
+      nio4r (~> 2.0)
     rack (3.2.1)
     rack-protection (4.1.1)
       base64 (>= 0.1.0)
@@ -33,6 +36,8 @@ GEM
     rack-session (2.1.1)
       base64 (>= 0.1.0)
       rack (>= 3.0.0)
+    rackup (2.2.1)
+      rack (>= 3)
     rake (13.3.0)
     ruby2_keywords (0.0.5)
     sinatra (4.1.1)
@@ -55,6 +60,8 @@ DEPENDENCIES
   dotenv
   launchy
   pg
+  puma
+  rackup
   sinatra
   sinatra-flash
 
