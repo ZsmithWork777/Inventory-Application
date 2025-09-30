@@ -1,3 +1,4 @@
+require "dotenv/load"
 require "launchy"
 require "sinatra"
 require "sinatra/flash"
@@ -36,13 +37,14 @@ end
 # ------------------------
 post "/login" do
   username = params[:username].to_s.strip
-  password = params[:password].to_s
+  password = params[:password].to_s.strip
 
   conn = db_connection
   user = conn.exec_params("SELECT * FROM users WHERE username = $1", [username]).first
   conn.close
 
-  match = user ? Argon2::Password.verify_password(password.strip, user["password_hash"]) : false
+  # ✅ Correct Argon2 verification
+  match = user && Argon2::Password.verify_password(password, user["password_hash"])
 
   if user && match
     session[:user] = username
