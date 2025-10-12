@@ -31,11 +31,11 @@ A clean, cloud-deployed inventory management app — built fully from scratch us
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Ruby + Sinatra
-- **Database:** PostgreSQL (Render-hosted)
-- **Auth:** Argon2 password hashing + session cookies
-- **AI Integration:** OpenAI API for category prediction
-- **Styling:** TailwindCSS (CDN-based)
+- **Backend:** Ruby + Sinatra  
+- **Database:** PostgreSQL (Render-hosted)  
+- **Auth:** Argon2 password hashing + session cookies  
+- **AI Integration:** OpenAI API for category prediction  
+- **Styling:** TailwindCSS (CDN-based)  
 - **Deployment:** Render
 
 ---
@@ -50,5 +50,11 @@ cd Inventory-Application
 # 2. Install dependencies
 bundle install
 
-# 3. Create your .env file
-cp .env.example .env
+# 3. Create .env file in the root folder with the following keys:
+DATABASE_URL=postgresql://your_user:your_pass@localhost/inventory_db
+OPENAI_API_KEY=sk-...
+
+# 4. Run the app
+ruby app.rb
+Username: admin
+Password: admin123
