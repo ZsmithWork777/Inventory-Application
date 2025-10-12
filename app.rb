@@ -21,7 +21,10 @@ set :views, File.join(__dir__, "views")
 # ------------------------
 # OpenAI Client Setup
 # ------------------------
-OPENAI_CLIENT = OpenAI::Client.new(access_token: ENV["OPENAI_API_KEY"])
+OPENAI_CLIENT = OpenAI::Client.new(
+  access_token: ENV["OPENAI_API_KEY"],
+  project: "proj_f47WaWBb6AuCPPonFBUYvBd5EhdAMYLpOi7hbcnHSG4ctDUCZ0JWKHbW3EdvJijbvgIQK6RZHjT3BlbkFJj"
+)
 
 # ------------------------
 # Suggestions (round-robin fallback)
