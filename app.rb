@@ -8,7 +8,7 @@ require "securerandom"
 require "uri"
 require "openai"
 
-puts "🚀 Sinatra server starting at http://localhost:4567"
+puts "🚀 Sinatra server running at http://localhost:4567"
 
 # ------------------------
 # Session / Flash Setup
@@ -23,71 +23,91 @@ set :views, File.join(__dir__, "views")
 # ------------------------
 OPENAI_CLIENT = OpenAI::Client.new(
   access_token: ENV["OPENAI_API_KEY"],
-  project: "proj_f47WaWBb6AuCPPonFBUYvBd5EhdAMYLpOi7hbcnHSG4ctDUCZ0JWKHbW3EdvJijbvgIQK6RZHjT3BlbkFJj"
+  project:      ENV["OPENAI_PROJECT_ID"] || "proj_f47WaWBb6AuCPPonFBUYvBd5EhdAMYLpOi7hbcnHSG4ctDUCZ0JWKHbW3EdvJijbvgIQK6RZHjT3BlbkFJj"
 )
 
 # ------------------------
-# Suggestions (round-robin fallback)
+# Suggestion Cache (avoid hitting rate limits)
 # ------------------------
-SUGGESTIONS = [
-  "Energy / Focus",
-  "Productivity",
-  "Wellness",
-  "Creativity",
-  "Self-Improvement"
-].freeze
-
-def next_suggested_category!
-  session[:category_index] ||= 0
-  value = SUGGESTIONS[session[:category_index] % SUGGESTIONS.length]
-  session[:category_index] = (session[:category_index] + 1) % SUGGESTIONS.length
-  value
-end
+AI_CACHE = {}
 
 # ------------------------
 # Database Connection
 # ------------------------
 def db_connection
-  PG.connect(ENV["DATABASE_URL"])
+  conn_params = ENV["DATABASE_URL"]
+  conn_params += "?sslmode=require" unless conn_params =~ /sslmode=/i
+  PG.connect(conn_params)
 end
 
 # ------------------------
-# AI-Powered Smart Category (with Faraday handling)
+# AI Category Suggestion Route (One-word, safe, throttled)
 # ------------------------
 post "/products/suggest_category" do
   product_name = params["name"].to_s.strip
+  quantity     = params["quantity"].to_s.strip
+  price        = params["price"].to_s.strip
+  current_cat  = params["category"].to_s.strip
+
+  unless current_cat.empty?
+    flash[:success] = "⚡ Category already set — no AI needed."
+    redirect request.referer || "/products"
+  end
 
   if product_name.empty?
-    flash[:error] = "Please enter a product name first."
-    redirect "/products"
+    flash[:error] = "⚠️ Please enter a product name first."
+    redirect request.referer || "/products"
   end
 
-  prompt = "Suggest a short, relevant category for a product called '#{product_name}'. " \
-           "Respond with only one or two words."
+  price_tier = ((price.to_f / 10).floor rescue 0)
+  cache_key  = "#{product_name.downcase}-tier#{price_tier}"
 
-  begin
-    response = OPENAI_CLIENT.chat(
-      parameters: {
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
-      }
-    )
+  suggestion =
+    if AI_CACHE.key?(cache_key)
+      AI_CACHE[cache_key]
+    else
+      sleep 1.2
 
-    suggestion = response.dig("choices", 0, "message", "content").to_s.strip
-    suggestion = "Uncategorized" if suggestion.empty?
+      prompt = <<~TEXT
+        Suggest ONE relevant category for this product. Reply with exactly one word only.
 
-    flash[:success] = "⚡ Suggested category: #{suggestion}"
-    redirect "/products?prefill_category=#{URI.encode_www_form_component(suggestion)}"
+        Name: #{product_name}
+        Quantity: #{quantity}
+        Price: #{price}
+      TEXT
 
-  rescue Faraday::TooManyRequestsError
-    # Specific catch for OpenAI 429 rate limit
-    flash[:error] = "⚠️ OpenAI rate limit reached — please wait a few seconds and try again."
-    redirect "/products"
+      begin
+        response = OPENAI_CLIENT.chat(
+          parameters: {
+            model: "gpt-3.5-turbo",
+            messages: [{ role: "user", content: prompt }]
+          }
+        )
 
-  rescue => e
-    flash[:error] = "AI suggestion failed: #{e.message}"
-    redirect "/products"
-  end
+        raw = response.dig("choices", 0, "message", "content").to_s.strip
+        word = raw.split(/\s+|[,.;:|]/).first.to_s
+        word = word.gsub(/[^a-zA-Z0-9\-]/, "")
+        word = word.empty? ? "Misc" : word.capitalize
+
+        AI_CACHE[cache_key] = word
+      rescue Faraday::TooManyRequestsError
+        flash[:error] = "⚠️ OpenAI rate limit reached. Please wait a moment and try again."
+        redirect request.referer || "/products"
+      rescue Faraday::ClientError => e
+        if e.response && e.response[:status].to_i == 401
+          flash[:error] = "⚠️ OpenAI auth error (401). Check your API key / project."
+        else
+          flash[:error] = "AI error: #{e.message}"
+        end
+        redirect request.referer || "/products"
+      rescue => e
+        flash[:error] = "AI suggestion failed: #{e.message}"
+        redirect request.referer || "/products"
+      end
+    end
+
+  target = request.referer || "/products"
+  redirect "#{target}#{"?" if target && !target.include?("?")}#{target&.include?("?") ? "&" : ""}prefill_category=#{URI.encode_www_form_component(suggestion)}"
 end
 
 # ------------------------
@@ -102,25 +122,24 @@ end
 # ------------------------
 get "/products/search" do
   query = params[:q].to_s.strip.downcase
+  redirect "/products" if query.empty?
 
-  if query.empty?
-    redirect "/products"
-  else
-    @products = db_connection.exec_params(
-      "SELECT * FROM products WHERE LOWER(name) LIKE $1 OR LOWER(category) LIKE $1",
-      ["%#{query}%"]
-    )
+  conn = db_connection
+  @products = conn.exec_params(
+    "SELECT * FROM products WHERE LOWER(name) LIKE $1 OR LOWER(category) LIKE $1",
+    ["%#{query}%"]
+  )
+  conn.close
 
-    @total_products = @products.ntuples
-    @total_units = @products.map { |p| p["quantity"].to_i }.sum
-    @total_value = @products.map { |p| p["price"].to_f }.sum.round(2)
+  @total_products = @products.ntuples
+  @total_units    = @products.map { |p| p["quantity"].to_i }.sum
+  @total_value    = @products.map { |p| p["price"].to_f }.sum.round(2)
 
-    erb :products
-  end
+  erb :products
 end
 
 # ------------------------
-# ✅ CSV Export (Stockio)
+# CSV Export
 # ------------------------
 get "/products/export" do
   conn = db_connection
@@ -139,37 +158,52 @@ get "/products/export" do
 end
 
 # ------------------------
-# Protect /products routes
+# Protect Product Routes
 # ------------------------
 before "/products*" do
   redirect "/" unless session[:user]
 end
 
 # ------------------------
-# Show all products + totals
+# Products Dashboard (with optional category filter)
 # ------------------------
 get "/products" do
   conn = db_connection
-  @products = conn.exec("SELECT * FROM products ORDER BY id;")
+  selected_category = params[:category].to_s.strip
 
-  totals = conn.exec(<<~SQL)
+  if selected_category.empty?
+    @products = conn.exec("SELECT * FROM products ORDER BY id;")
+  else
+    @products = conn.exec_params(
+      "SELECT * FROM products WHERE category = $1 ORDER BY id;",
+      [selected_category]
+    )
+  end
+
+  totals = conn.exec_params(<<~SQL, (selected_category.empty? ? [] : [selected_category]))
     SELECT COUNT(*) AS total_products,
            COALESCE(SUM(quantity), 0) AS total_units,
            COALESCE(SUM(quantity * price), 0) AS total_value
     FROM products
+    #{'WHERE category = $1' unless selected_category.empty?}
   SQL
+
   @total_products = totals[0]["total_products"] || 0
   @total_units    = totals[0]["total_units"]    || 0
   @total_value    = totals[0]["total_value"]    || 0
 
+  all_cats = conn.exec("SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category;")
+  @categories = all_cats.map { |r| r["category"] }
+
   conn.close
 
   @prefill_category = params["prefill_category"].to_s
+  @selected_category = selected_category
   erb :products
 end
 
 # ------------------------
-# Handle Login
+# Login Handling
 # ------------------------
 post "/login" do
   username = params[:username].to_s.strip
@@ -201,7 +235,7 @@ get "/logout" do
 end
 
 # ------------------------
-# Add a new product
+# Add New Product
 # ------------------------
 post "/products" do
   name      = params["name"].to_s.strip
@@ -226,7 +260,7 @@ post "/products" do
 end
 
 # ------------------------
-# Delete a product
+# Delete Product
 # ------------------------
 post "/products/:id/delete" do
   conn = db_connection
@@ -237,19 +271,18 @@ post "/products/:id/delete" do
 end
 
 # ------------------------
-# Show edit form
+# Edit Product
 # ------------------------
 get "/products/:id/edit" do
   conn = db_connection
   result = conn.exec_params("SELECT * FROM products WHERE id = $1", [params["id"].to_i])
   conn.close
-
   @product = result.first
   erb :edit
 end
 
 # ------------------------
-# Update product
+# Update Product
 # ------------------------
 post "/products/:id/update" do
   id       = params["id"].to_i
