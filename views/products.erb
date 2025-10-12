@@ -1,103 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <% if flash[:success] %>
-    <div class="flash-success"><%= flash[:success] %></div>
-  <% end %>
-  <% if flash[:error] %>
-    <div class="flash-error"><%= flash[:error] %></div>
-  <% end %>
+  <!-- Flash Notifications -->
+  <div id="flash-container" class="fixed top-6 right-6 z-50 space-y-3">
+    <% if flash[:success] %>
+      <div class="bg-green-500/90 text-white px-4 py-3 rounded-lg shadow-md animate-fade-in-down">
+        <%= flash[:success] %>
+      </div>
+    <% end %>
+    <% if flash[:error] %>
+      <div class="bg-rose-500/90 text-white px-4 py-3 rounded-lg shadow-md animate-fade-in-down">
+        <%= flash[:error] %>
+      </div>
+    <% end %>
+  </div>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Performance Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="font-sans bg-gradient-to-br from-[#a2d2ff] via-[#bde0fe] to-[#cdb4db] flex flex-col items-center min-h-screen p-6 text-gray-900">
 
   <!-- Search + Export -->
-  <div class="flex mb-4 gap-3">
-    <form action="/products/search" method="get" class="flex">
+  <div class="flex flex-col sm:flex-row mb-4 gap-3 w-full max-w-3xl justify-center">
+    <form action="/products/search" method="get" class="flex flex-1">
       <input type="text" name="q" placeholder="Search items or category..."
-        class="p-2 rounded-l-lg border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none">
+        class="flex-1 p-2 rounded-l-lg border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none">
       <button type="submit"
         class="bg-gradient-to-r from-cyan-400 to-indigo-500 text-white px-4 py-2 rounded-r-lg font-semibold shadow hover:scale-105 transition">
         Search
       </button>
     </form>
 
-    <!-- Stockio Export Button -->
     <form action="/products/export" method="get">
       <button type="submit"
-        class="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2 rounded-lg font-semibold shadow hover:scale-105 transition">
+        class="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2 rounded-lg font-semibold shadow hover:scale-105 transition w-full sm:w-auto">
         Stockio ⬇️
       </button>
     </form>
   </div>
 
-  <!-- Summary cards -->
-  <div class="flex gap-4 mb-6 w-full max-w-3xl">
-    <div class="flex-1 bg-gradient-to-r from-cyan-400 to-indigo-500 text-white p-4 rounded-xl shadow-lg text-center">
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 w-full max-w-3xl">
+    <div class="bg-gradient-to-r from-cyan-400 to-indigo-500 text-white p-4 rounded-xl shadow-lg text-center">
       <div class="text-lg font-semibold">📦 <%= @total_products %></div>
       <div class="text-sm opacity-90">Total Items</div>
     </div>
-    <div class="flex-1 bg-gradient-to-r from-green-400 to-emerald-500 text-white p-4 rounded-xl shadow-lg text-center">
+    <div class="bg-gradient-to-r from-green-400 to-emerald-500 text-white p-4 rounded-xl shadow-lg text-center">
       <div class="text-lg font-semibold">📊 <%= @total_units %></div>
       <div class="text-sm opacity-90">Units Logged</div>
     </div>
-    <div class="flex-1 bg-gradient-to-r from-rose-400 to-pink-500 text-white p-4 rounded-xl shadow-lg text-center">
+    <div class="bg-gradient-to-r from-rose-400 to-pink-500 text-white p-4 rounded-xl shadow-lg text-center">
       <div class="text-lg font-semibold">💰 $<%= @total_value %></div>
       <div class="text-sm opacity-90">Total Value</div>
     </div>
   </div>
 
-  <!-- Item Table -->
-  <div class="glass-container w-4/5 max-w-3xl mb-8 bg-white/25 backdrop-blur-xl rounded-2xl p-6 shadow-xl">
-    <h1 class="text-2xl font-semibold text-center text-sky-700 mb-4">Items</h1>
-    <table class="w-full border-collapse rounded-xl overflow-hidden">
+ <!-- Item Table -->
+<div class="glass-container w-full sm:w-4/5 max-w-3xl mb-8 bg-white/25 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-xl">
+  <h1 class="text-2xl font-semibold text-center text-sky-700 mb-4">Items</h1>
+
+  <!-- Mobile scroll wrapper -->
+  <div class="overflow-x-auto rounded-xl">
+    <table class="min-w-full border-collapse text-sm sm:text-base table-auto">
       <thead>
-        <tr class="bg-sky-500/60 text-white">
-          <th class="px-4 py-3">NAME & ZONE</th>
-          <th class="px-4 py-3">QUANTITY</th>
-          <th class="px-4 py-3">VALUE</th>
-          <th class="px-4 py-3">ACTIONS</th>
+        <tr class="bg-sky-500/60 text-white text-left">
+          <th class="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap">NAME & ZONE</th>
+          <th class="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-center">QUANTITY</th>
+          <th class="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-center">VALUE</th>
+          <th class="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-center">ACTIONS</th>
         </tr>
       </thead>
+
       <tbody>
         <% if @products.ntuples == 0 %>
           <tr>
-            <td colspan="5" class="text-center py-4 text-gray-500">No items found.</td>
+            <td colspan="4" class="text-center py-4 text-gray-500">No items found.</td>
           </tr>
         <% else %>
           <% @products.each do |row| %>
-            <tr class="text-center bg-white/30 hover:bg-white/60 transition">
-              <td class="px-4 py-3">
+            <tr class="bg-white/40 hover:bg-white/60 transition">
+              <td class="px-3 py-3 sm:px-4 align-top">
                 <div class="font-semibold"><%= row["name"] %></div>
                 <% cat = row["category"].to_s.strip %>
-                <div class="mt-1">
-                  <span class="inline-block px-2 py-1 rounded-md text-xs font-semibold
-                               <%= cat.empty? ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-700' %>">
-                    <%= cat.empty? ? "—" : cat %>
-                  </span>
-                </div>
+                <span class="inline-block mt-1 px-2 py-1 rounded-md text-xs font-semibold
+                             <%= cat.empty? ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-700' %>">
+                  <%= cat.empty? ? "—" : cat %>
+                </span>
               </td>
 
-              <td class="px-4 py-3"><%= row["quantity"] %></td>
-              <td class="px-4 py-3">$<%= row["price"] %></td>
+              <td class="px-3 py-3 sm:px-4 text-center"><%= row["quantity"] %></td>
+              <td class="px-3 py-3 sm:px-4 text-center">$<%= row["price"] %></td>
 
-              <td class="px-4 py-3 space-x-2">
-                <form action="/products/<%= row["id"] %>/edit" method="get" class="inline">
-                  <button type="submit"
-                          class="bg-gradient-to-r from-cyan-400 to-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow hover:scale-105 hover:from-indigo-500 hover:to-cyan-400 transition">
-                    Edit
-                  </button>
-                </form>
-                <form action="/products/<%= row["id"] %>/delete" method="post" class="inline">
-                  <button type="submit"
-                          class="bg-gradient-to-r from-rose-400 to-pink-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow hover:scale-105 hover:from-pink-500 hover:to-rose-400 transition">
-                    Delete
-                  </button>
-                </form>
+              <td class="px-3 py-3 sm:px-4 text-center">
+                <div class="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3">
+                  <form action="/products/<%= row["id"] %>/edit" method="get" class="inline">
+                    <button type="submit"
+                      class="bg-gradient-to-r from-cyan-400 to-indigo-500 text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-medium shadow hover:scale-105 transition">
+                      Edit
+                    </button>
+                  </form>
+                  <form action="/products/<%= row["id"] %>/delete" method="post" class="inline">
+                    <button type="submit"
+                      class="bg-gradient-to-r from-rose-400 to-pink-500 text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-medium shadow hover:scale-105 transition">
+                      Delete
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
           <% end %>
@@ -105,9 +116,10 @@
       </tbody>
     </table>
   </div>
+</div>
 
   <!-- Add New Item -->
-  <div class="w-4/5 max-w-3xl bg-white/25 backdrop-blur-xl rounded-2xl p-6 shadow-xl">
+  <div class="w-full sm:w-4/5 max-w-3xl bg-white/25 backdrop-blur-xl rounded-2xl p-6 shadow-xl">
     <h2 class="text-xl font-semibold text-center text-sky-700 mb-4">Add a New Item</h2>
     <form action="/products" method="post" class="flex flex-col space-y-3">
       <label class="font-medium">Name:</label>
@@ -124,13 +136,13 @@
 
       <div>
         <label class="font-medium">Zone / Category (optional):</label>
-        <div class="flex gap-2 items-stretch">
+        <div class="flex flex-col sm:flex-row gap-2 items-stretch">
           <input type="text" name="category"
                  value="<%= @prefill_category %>"
                  placeholder="Type a category — or use ⚡ Smart Category"
                  class="flex-1 p-3 rounded-lg bg-white/50 backdrop-blur-md focus:ring-2 focus:ring-sky-400 outline-none">
           <button type="submit" formaction="/products/suggest_category" formmethod="post"
-            class="px-4 py-3 rounded-lg font-semibold bg-black text-white">
+            class="px-4 py-3 rounded-lg font-semibold bg-black text-white hover:bg-gray-800 transition">
             ⚡ SMART CATEGORY
           </button>
         </div>

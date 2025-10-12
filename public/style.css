@@ -70,3 +70,11 @@ input[type="text"], input[type="number"] {
   background: rgba(255,255,255,0.5);
   backdrop-filter: blur(6px);
 }
+
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-down {
+  animation: fade-in-down 0.4s ease-out;
+}

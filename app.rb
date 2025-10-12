@@ -6,6 +6,7 @@ require "pg"
 require "argon2"
 require "securerandom"
 require "uri"
+require "openai"
 
 puts "🚀 Sinatra server starting at http://localhost:4567"
 
@@ -18,7 +19,12 @@ register Sinatra::Flash
 set :views, File.join(__dir__, "views")
 
 # ------------------------
-# Suggestions (round-robin)
+# OpenAI Client Setup
+# ------------------------
+OPENAI_CLIENT = OpenAI::Client.new(access_token: ENV["OPENAI_API_KEY"])
+
+# ------------------------
+# Suggestions (round-robin fallback)
 # ------------------------
 SUGGESTIONS = [
   "Energy / Focus",
@@ -43,6 +49,45 @@ def db_connection
 end
 
 # ------------------------
+# AI-Powered Smart Category (with Faraday handling)
+# ------------------------
+post "/products/suggest_category" do
+  product_name = params["name"].to_s.strip
+
+  if product_name.empty?
+    flash[:error] = "Please enter a product name first."
+    redirect "/products"
+  end
+
+  prompt = "Suggest a short, relevant category for a product called '#{product_name}'. " \
+           "Respond with only one or two words."
+
+  begin
+    response = OPENAI_CLIENT.chat(
+      parameters: {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }]
+      }
+    )
+
+    suggestion = response.dig("choices", 0, "message", "content").to_s.strip
+    suggestion = "Uncategorized" if suggestion.empty?
+
+    flash[:success] = "⚡ Suggested category: #{suggestion}"
+    redirect "/products?prefill_category=#{URI.encode_www_form_component(suggestion)}"
+
+  rescue Faraday::TooManyRequestsError
+    # Specific catch for OpenAI 429 rate limit
+    flash[:error] = "⚠️ OpenAI rate limit reached — please wait a few seconds and try again."
+    redirect "/products"
+
+  rescue => e
+    flash[:error] = "AI suggestion failed: #{e.message}"
+    redirect "/products"
+  end
+end
+
+# ------------------------
 # Login Page
 # ------------------------
 get "/" do
@@ -52,11 +97,11 @@ end
 # ------------------------
 # Product Search (by name OR category)
 # ------------------------
-get '/products/search' do
+get "/products/search" do
   query = params[:q].to_s.strip.downcase
 
   if query.empty?
-    redirect '/products'
+    redirect "/products"
   else
     @products = db_connection.exec_params(
       "SELECT * FROM products WHERE LOWER(name) LIKE $1 OR LOWER(category) LIKE $1",
@@ -217,27 +262,12 @@ post "/products/:id/update" do
     conn = db_connection
     conn.exec_params(
       "UPDATE products
-          SET name=$1, quantity=$2, price=$3, category=$4
-        WHERE id=$5;",
+         SET name=$1, quantity=$2, price=$3, category=$4
+       WHERE id=$5;",
       [name, quantity, price, (category.empty? ? nil : category), id]
     )
     conn.close
     flash[:success] = "✏️ Item updated!"
     redirect "/products"
   end
-end
-
-# ------------------------
-# Smart Category
-# ------------------------
-post "/products/suggest_category" do
-  current = params["category"].to_s.strip
-  suggested =
-    if current.nil? || current.empty?
-      next_suggested_category!
-    else
-      current
-    end
-
-  redirect "/products?prefill_category=#{URI.encode_www_form_component(suggested)}"
 end
